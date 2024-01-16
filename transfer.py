@@ -103,7 +103,7 @@ def main():
 
     # Save image.
     img = Image.frombytes(IMAGE_MODE, (width, height), bytes(read_data))
-    img.save("/home/pi/webcam/images/msp/received.png")
+    img.save("/home/webcam/images/msp/received.png")
 
 if __name__ == "__main__":
     main()
