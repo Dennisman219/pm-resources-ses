@@ -19,7 +19,6 @@ def write(tty, data: bytes):
     tty.write(data)
 
 def main():
-    read_data = bytearray()
     buffer = bytearray([0, 0])
 
     try:
@@ -38,7 +37,7 @@ def main():
             num_blocks = BYTE_LENGTH // BYTE_CHUNK_SIZE_BYTES
             remainder = BYTE_LENGTH % BYTE_CHUNK_SIZE_BYTES
 
-            # Transmit and receive all of the chunks.
+            # Transmit all of the chunks.
             for i in range(num_blocks):
                 # Set length in buffer.
                 buffer[0] = BYTE_CHUNK_SIZE_BYTES & 0xFF
@@ -50,9 +49,6 @@ def main():
                 # Send buffer over serial.
                 print("Writing chunk {} of {}...".format(i + 1, num_blocks))
                 write(tty, buffer)
-
-                # Read bytes over serial.
-                read_data.extend(tty.read(BYTE_CHUNK_SIZE_BYTES))
 
                 # Reset buffer.
                 buffer = bytearray([0, 0])
@@ -69,11 +65,7 @@ def main():
                 print("Writing remaining {} bytes...".format(remainder))
                 write(tty, buffer)
 
-                # Read bytes over serial.
-                read_data.extend(tty.read(remainder))
-
             print("Test bytes sent successfully.")
-            print("Received bytes:", read_data)
 
     except serial.SerialException as e:
         print(f"Serial error: {e}")
