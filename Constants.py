@@ -3,3 +3,4 @@ class SerialConfig:
     TTY_PORT = "/dev/tty.usbmodem000000031"
     BYTE_CHUNK_SIZE = 1024
     TIMEOUT = 256
+    ENCODING = 'utf-8'
