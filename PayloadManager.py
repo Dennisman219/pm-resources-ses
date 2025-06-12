@@ -1,87 +1,76 @@
-import argparse
-from time import sleep
 import serial
 import subprocess
 import shlex
-
+import time
 from Constants import SerialConfig
 
-def run_command(command) -> bytes:
-    command = shlex.split(command)
-    result = subprocess.run(command, capture_output=True)
-
-    if result.returncode != 0:
-        print(f"Command failed: {result.stderr}")
-        return None
-    else:
-        return result.stdout
-
-def write_output_string(data: bytes):
-    tty = None
-
-    try:
-        tty = serial.Serial(SerialConfig.TTY_PORT, SerialConfig.BAUD_RATE, SerialConfig.TIMEOUT)
-
-        sleep(1)
-
-        # Flush buffer.
-        tty.flush()
-
-        remaining_bytes = len(data)
-
-        while remaining_bytes > 0:  
-            chunk_size = min(SerialConfig.BYTE_CHUNK_SIZE, remaining_bytes)
-            tty.write(data[:chunk_size])
-            data = data[chunk_size:]
-            remaining_bytes -= chunk_size
+def run_command(command_str: str) -> bytes:
     
-    except serial.SerialException as e:
-        print(f"Serial error: {e}")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-    finally:
-        if tty and tty.is_open:
-            tty.close()
+    try:
+        command_parts = shlex.split(command_str)
+    except ValueError:
+        return b"Error: Invalid command format."
 
-def read_input_string(byte_length) -> str:
-    read_data = bytearray()
-    tty = None
-    data_str = None
+    if not command_parts:
+        return b"Empty command received."
 
     try:
-        tty = serial.Serial(SerialConfig.TTY_PORT, SerialConfig.BAUD_RATE, SerialConfig.TIMEOUT)
+        result = subprocess.run(command_parts, capture_output=True, text=True, timeout=10)
+        
+        # Combine stdout and stderr to send everything back to the user
+        if result.stdout and result.stderr:
+            return f"STDOUT\n{result.stdout}\nSTDERR\n{result.stderr}".encode(SerialConfig.ENCODING)
+        elif result.stdout:
+            return result.stdout.encode(SerialConfig.ENCODING)
+        elif result.stderr:
+            return result.stderr.encode(SerialConfig.ENCODING)
+        else:
+            return b"No output"
 
-        sleep(1)
-
-        # Flush buffer.
-        tty.flush()
-
-        remaining_bytes = byte_length
-
-        while remaining_bytes > 0:
-            chunk_size = min(SerialConfig.BYTE_CHUNK_SIZE, remaining_bytes)
-            data = tty.read(chunk_size)
-            read_data.extend(data)
-            remaining_bytes -= len(data)
-
-        data_str = read_data.decode(SerialConfig.ENCODING).strip()
-
-    except serial.SerialException as e:
-        print(f"Serial error: {e}")
+    except FileNotFoundError:
+        return f"Error: Command not found: {command_parts[0]}".encode(SerialConfig.ENCODING)
+    except subprocess.TimeoutExpired:
+        return b"Error: Command timed out."
     except Exception as e:
-        print(f"An error occurred: {e}")
-    finally:
-        if tty and tty.is_open:
-            tty.close()
+        return f"An error occurred: {e}".encode(SerialConfig.ENCODING)
 
-    return "" if data_str == None else data_str
 
 def main():
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("byte_length", type=int, help="Input byte array length")
-    args = parser.parse_args()
+    ser = None
+    try:
+        ser = serial.Serial(SerialConfig.TTY_PORT, SerialConfig.BAUD_RATE, timeout=SerialConfig.TIMEOUT)
+        time.sleep(1) 
+        ser.reset_input_buffer()
 
-    input_string = read_input_string(args.byte_length)
+
+        # listener loop
+        while True:
+            command_bytes = ser.readline()
+            
+            if not command_bytes:
+                continue
+
+            command_str = command_bytes.decode(SerialConfig.ENCODING).strip()
+
+            if command_str:
+                output_bytes = run_command(command_str)
+
+                # Send the output back 
+                if output_bytes:
+                    ser.write(output_bytes)
+                    ser.write(b'\n') 
+                    ser.flush()
+
+            time.sleep(1) 
+    except serial.SerialException as e:
+        print(f"Serial error: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+    finally:
+        if ser and ser.is_open:
+            ser.close()
+            print("Serial port closed.")
+
 
 if __name__ == "__main__":
     main()
