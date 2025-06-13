@@ -38,28 +38,42 @@ class DicePayload:
     def _read_byte(self, command):
         """
         Read a byte from the Dice Payload controller.
+        Reads the 4-byte response packet and returns the data byte.
         
         Args:
             command: Command byte
         
         Returns:
-            byte: The read byte
+            byte: The data byte from the response packet
         """
         self.bus.write_byte(self.address, command)
-        return self.bus.read_byte(self.address)
+        
+        # Read the 4-byte response packet: Start, Command ID, Data, Stop
+        response = []
+        for i in range(4):
+            response.append(self.bus.read_byte(self.address))
+        
+        # Parse packet format
+        start_byte = response[0]  # Should be '$' (0x24)
+        command_id = response[1]  # Should match the command sent
+        data_byte = response[2]   # The actual data
+        stop_byte = response[3]   # Should be '\n' (0x0A)
+        
+        # Validate packet format
+        if start_byte != 0x24 or stop_byte != 0x0A:  # '$' and '\n'
+            print("communication error")
+            #return 0  # Return default value on error
+        
+        return data_byte
     
     def get_status(self):
         """
-        Read the status byte.
+        Read the status byte from the response packet.
         
         Returns:
-            int: Status byte
+            int: Status data byte
         """
-        self.bus.read_byte(self.address)
-        self.bus.read_byte(self.address)
-        status = self._read_byte(DiceConfig.CMD_STATUS)
-        self.bus.read_byte(self.address)
-        return status
+        return self._read_byte(DiceConfig.CMD_STATUS)
     
     def wait_until_ready(self, timeout=10):
         """
@@ -170,12 +184,20 @@ class DicePayload:
     
     # Motor action commands
     def clamp(self):
-        """Execute clamp dice routine"""
+        """Execute clamp dice routine (non-blocking)"""
+        self._send_command(DiceConfig.CMD_CLAMP)
+    
+    def clamp_sync(self):
+        """Execute clamp dice routine and wait until ready"""
         self._send_command(DiceConfig.CMD_CLAMP)
         return self.wait_until_ready()
     
     def unclamp(self):
-        """Execute unclamp dice routine"""
+        """Execute unclamp dice routine (non-blocking)"""
+        self._send_command(DiceConfig.CMD_UNCLAMP)
+    
+    def unclamp_sync(self):
+        """Execute unclamp dice routine and wait until ready"""
         self._send_command(DiceConfig.CMD_UNCLAMP)
         return self.wait_until_ready()
     
@@ -246,7 +268,14 @@ class DicePayload:
             cmd |= 0x08
         
         self._send_command(cmd)
-    
+
     def reset(self):
         """Reset system variables"""
         self._send_command(DiceConfig.CMD_RESET)
+
+    def dice_sequence(self):
+        self.unclamp_sync()
+        status = self.get_status()
+        self.clamp_sync()
+        status = self.get_status()
+        
