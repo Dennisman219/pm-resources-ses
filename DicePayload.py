@@ -48,10 +48,16 @@ class DicePayload:
         """
         self.bus.write_byte(self.address, command)
         
+        # Add delay to allow Arduino to prepare response
+        time.sleep(0.01)  # 10ms delay
+        
         # Read the 4-byte response packet: Start, Command ID, Data, Stop
         response = []
         for i in range(4):
-            response.append(self.bus.read_byte(self.address))
+            byte_val = self.bus.read_byte(self.address)
+            response.append(byte_val)
+            print(f"Byte {i}: 0x{byte_val:02X} ({chr(byte_val) if 32 <= byte_val <= 126 else '?'})")
+            time.sleep(0.001)  # Small delay between reads
         
         # Parse packet format
         start_byte = response[0]  # Should be '$' (0x24)
@@ -59,12 +65,57 @@ class DicePayload:
         data_byte = response[2]   # The actual data
         stop_byte = response[3]   # Should be '\n' (0x0A)
         
+        print(f"Full response: {[hex(b) for b in response]}")
+        
         # Validate packet format
         if start_byte != 0x24 or stop_byte != 0x0A:  # '$' and '\n'
             print("communication error")
             #return 0  # Return default value on error
         
         return data_byte
+    
+    def _read_byte_block(self, command):
+        """
+        Alternative read method using block read.
+        
+        Args:
+            command: Command byte
+        
+        Returns:
+            byte: The data byte from the response packet
+        """
+        self.bus.write_byte(self.address, command)
+        
+        # Add delay to allow Arduino to prepare response
+        time.sleep(0.01)  # 10ms delay
+        
+        # Try reading 4 bytes at once
+        try:
+            response = self.bus.read_i2c_block_data(self.address, 0, 4)
+            print(f"Block read response: {[hex(b) for b in response]}")
+            
+            # Parse packet format
+            start_byte = response[0]  # Should be '$' (0x24)
+            command_id = response[1]  # Should match the command sent
+            data_byte = response[2]   # The actual data
+            stop_byte = response[3]   # Should be '\n' (0x0A)
+            
+            # Validate packet format
+            if start_byte != 0x24 or stop_byte != 0x0A:  # '$' and '\n'
+                print("communication error")
+            
+            return data_byte
+        except Exception as e:
+            print(f"Block read failed: {e}")
+            return 0
+    
+    def _flush_i2c_buffer(self):
+        """Flush any remaining data in I2C buffer"""
+        try:
+            for _ in range(10):  # Try to read up to 10 stale bytes
+                self.bus.read_byte(self.address)
+        except:
+            pass  # Expected when buffer is empty
     
     def get_status(self):
         """
@@ -278,4 +329,3 @@ class DicePayload:
         status = self.get_status()
         self.clamp_sync()
         status = self.get_status()
-        
