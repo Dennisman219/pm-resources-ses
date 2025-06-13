@@ -92,7 +92,7 @@ class DicePayload:
         # Try reading 4 bytes at once
         try:
             response = self.bus.read_i2c_block_data(self.address, 0, 4)
-            print(f"Block read response: {[hex(b) for b in response]}")
+            #print(f"Block read response: {[hex(b) for b in response]}")
             
             # Parse packet format
             start_byte = response[0]  # Should be '$' (0x24)
@@ -103,6 +103,7 @@ class DicePayload:
             # Validate packet format
             if start_byte != 0x24 or stop_byte != 0x0A:  # '$' and '\n'
                 print("communication error")
+                #return 0
             
             return data_byte
         except Exception as e:
@@ -113,7 +114,7 @@ class DicePayload:
         """Flush any remaining data in I2C buffer"""
         try:
             for _ in range(10):  # Try to read up to 10 stale bytes
-                self.bus.read_byte(self.address)
+                self.bus.read_byte_block(self.address)
         except:
             pass  # Expected when buffer is empty
     
@@ -124,7 +125,7 @@ class DicePayload:
         Returns:
             int: Status data byte
         """
-        return self._read_byte(DiceConfig.CMD_STATUS)
+        return self._read_byte_block(DiceConfig.CMD_STATUS)
     
     def wait_until_ready(self, timeout=10):
         """
@@ -147,19 +148,19 @@ class DicePayload:
     # Read commands
     def read_motor1_speed(self):
         """Read motor 1 speed (PWM value)"""
-        return self._read_byte(DiceConfig.CMD_R_M1_SPEED)
+        return self._read_byte_block(DiceConfig.CMD_R_M1_SPEED)
     
     def read_motor2_speed(self):
         """Read motor 2 speed (PWM value)"""
-        return self._read_byte(DiceConfig.CMD_R_M2_SPEED)
+        return self._read_byte_block(DiceConfig.CMD_R_M2_SPEED)
     
     def read_motor1_length(self):
         """Read motor 1 length (in 100ms units)"""
-        return self._read_byte(DiceConfig.CMD_R_M1_LENGTH)
+        return self._read_byte_block(DiceConfig.CMD_R_M1_LENGTH)
     
     def read_motor2_length(self):
         """Read motor 2 length (in 100ms units)"""
-        return self._read_byte(DiceConfig.CMD_R_M2_LENGTH)
+        return self._read_byte_block(DiceConfig.CMD_R_M2_LENGTH)
     
     def read_motor1_position(self):
         """
@@ -168,15 +169,15 @@ class DicePayload:
         Returns:
             int: 0x00 (unknown), 0x01 (clamped), 0x02 (unclamped)
         """
-        return self._read_byte(DiceConfig.CMD_R_M1_POSITION)
+        return self._read_byte_block(DiceConfig.CMD_R_M1_POSITION)
     
     def read_led_brightness(self):
         """Read LED brightness (PWM value)"""
-        return self._read_byte(DiceConfig.CMD_R_LED_BRIGHTNESS)
+        return self._read_byte_block(DiceConfig.CMD_R_LED_BRIGHTNESS)
     
     def read_led_status(self):
         """Read LED status"""
-        return self._read_byte(DiceConfig.CMD_R_LED_STATUS)
+        return self._read_byte_block(DiceConfig.CMD_R_LED_STATUS)
     
     # Write commands
     def write_motor1_speed(self, speed):
