@@ -345,6 +345,7 @@ class DicePayload:
                 "fswebcam",
                 "-d", device,
                 "-r", resolution,
+                "--jpeg 100"
                 "--no-banner",  # Remove timestamp banner
                 filename
             ]
@@ -353,20 +354,20 @@ class DicePayload:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
             
             if result.returncode == 0:
-                print(f"Picture saved as {filename}")
+                #print(f"Picture saved as {filename}")
                 return True
             else:
-                print(f"Error taking picture: {result.stderr}")
+                #print(f"Error taking picture: {result.stderr}")
                 return False
                 
         except subprocess.TimeoutExpired:
-            print("Camera timeout - taking picture took too long")
+            #print("Camera timeout - taking picture took too long")
             return False
         except FileNotFoundError:
-            print("Error: fswebcam not found. Install with: sudo apt-get install fswebcam")
+            #print("Error: fswebcam not found. Install with: sudo apt-get install fswebcam")
             return False
         except Exception as e:
-            print(f"Unexpected error taking picture: {e}")
+            #print(f"Unexpected error taking picture: {e}")
             return False
 
     # Higher level "automatic" commands
@@ -376,4 +377,15 @@ class DicePayload:
         status = self.get_status()
         self.clamp_sync()
         status = self.get_status()
+        self.take_picture()
+
+    def set_parameters(self, motor1_speed, motor2_speed, motor1_lenght, motor2_lenght, led_brightness, clamped1, clamped2, unclamped1, unclamped2):
+        self.write_motor1_speed(motor1_speed)
+        self.write_motor2_speed(motor2_speed)
+        self.write_motor1_length(motor1_lenght)
+        self.write_motor2_length(motor2_lenght)
+        self.write_led_brightness(led_brightness)
+        self.configure_switches(clamped1, clamped2, unclamped1, unclamped2)
+
+        return motor1_speed, motor2_speed, motor1_lenght, motor2_lenght, led_brightness, clamped1, clamped2, unclamped1, unclamped2
 
