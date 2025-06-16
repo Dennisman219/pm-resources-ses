@@ -325,8 +325,55 @@ class DicePayload:
         """Reset system variables"""
         self._send_command(DiceConfig.CMD_RESET)
 
+    def take_picture(self, filename="a.jpg", device="/dev/video0", resolution="640x480"):
+        """
+        Take a picture using fswebcam with USB camera.
+        
+        Args:
+            filename: Output filename (default: "a.jpg")
+            device: Camera device path (default: "/dev/video0")
+            resolution: Image resolution (default: "640x480")
+            
+        Returns:
+            bool: True if picture was taken successfully, False otherwise
+        """
+        import subprocess
+        
+        try:
+            # Build fswebcam command
+            cmd = [
+                "fswebcam",
+                "-d", device,
+                "-r", resolution,
+                "--no-banner",  # Remove timestamp banner
+                filename
+            ]
+            
+            # Execute command
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            
+            if result.returncode == 0:
+                print(f"Picture saved as {filename}")
+                return True
+            else:
+                print(f"Error taking picture: {result.stderr}")
+                return False
+                
+        except subprocess.TimeoutExpired:
+            print("Camera timeout - taking picture took too long")
+            return False
+        except FileNotFoundError:
+            print("Error: fswebcam not found. Install with: sudo apt-get install fswebcam")
+            return False
+        except Exception as e:
+            print(f"Unexpected error taking picture: {e}")
+            return False
+
+    # Higher level "automatic" commands
+
     def dice_sequence(self):
         self.unclamp_sync()
         status = self.get_status()
         self.clamp_sync()
         status = self.get_status()
+
