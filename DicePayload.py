@@ -345,7 +345,6 @@ class DicePayload:
                 "fswebcam",
                 "-d", device,
                 "-r", resolution,
-                "--jpeg 100"
                 "--no-banner",  # Remove timestamp banner
                 filename
             ]
